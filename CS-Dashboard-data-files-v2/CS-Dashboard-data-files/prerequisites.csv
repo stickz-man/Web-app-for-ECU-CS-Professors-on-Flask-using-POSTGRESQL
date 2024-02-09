@@ -1,0 +1,9 @@
+
+Prefix, Number, PC-prefix, PC-number, PC-code
+CSCI, 1000, MATH, 1065, PC
+CSCI, 1000, CSCI, 1003, C
+
+CSCI, 1010, SAT, ACT, P
+
+
+SAT/ACT or MATH 1065 or CSCI 1000; C: CSCI 1011. 
