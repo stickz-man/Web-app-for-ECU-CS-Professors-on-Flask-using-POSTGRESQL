@@ -61,38 +61,17 @@ class UniversityData:
         cur.close()
         conn.close()
         return rows
-
-    def calculate_fte(self, ch, enrollment, course_type):
-        divisors = {
-            'CSCI_graduate': 186.23,
-            'CSCI_undergraduate': 406.24,
-            'SENG_graduate': 90.17,
-            'SENG_undergraduate': 232.25,
-            'DASC': 186.23
-        }
-        divisor = divisors.get(course_type)
-        if divisor:
-            return (ch * enrollment) / divisor
-        else:
-            raise ValueError("Invalid course type")
-
-    def fetch_courses_for_fte(self, faculty=None, year=None, semester=None):
+    
+    def fetch_ch(self):
         conn = self.get_db_connection()
         if conn is None:
             return []
         cur = conn.cursor()
-        query = 'SELECT ch, enrollment, course_type FROM public."Courses" WHERE True'
-        if faculty:
-            query += f" AND faculty = '{faculty}'"
-        if year:
-            query += f" AND year = {year}"
-        if semester:
-            query += f" AND semester = '{semester}'"
-        cur.execute(query)
-        courses = cur.fetchall()
+        cur.execute('SELECT * FROM public."CH"')
+        rows = cur.fetchall()
         cur.close()
         conn.close()
-        return courses
+        return rows
 
     def print_html(self, data, tab="faculty"):
         print("""
@@ -141,16 +120,19 @@ class UniversityData:
                 <li><a href="?tab=fte" """ + ('class="active"' if tab=="fte" else '') + """>FTE</a></li>
             </ul>
             <form method="GET" action="">
-                <input type="hidden" name="tab" value="fte">
-                <label for="faculty">Faculty:</label>
-                <input type="text" id="faculty" name="faculty">
-                <label for="year">Year:</label>
-                <input type="text" id="year" name="year">
-                <label for="semester">Semester:</label>
-                <input type="text" id="semester" name="semester">
-                <input type="submit" value="Calculate FTE">
+                <input type="hidden" name="tab" value="faculty">
+                <label for="search">Search:</label>
+                <input type="text" id="search" name="search">
+                <label for="sort">Sort by:</label>
+                <select id="sort" name="sort">
+                    <option value="">--Select--</option>
+                    <option value="name">Name</option>
+                    <option value="rank">Rank</option>
+                </select>
+                <input type="submit" value="Search/Sort">
             </form>
         """)
+
         if tab == "faculty":
             print("<h2>Faculty</h2>")
         elif tab == "prerequisites":
@@ -158,14 +140,21 @@ class UniversityData:
         elif tab == "courses":
             print("<h2>Courses</h2>")
         elif tab == "fte":
-            print("<h2>FTE</h2>")
-            if data:
-                print("<table>")
-                print("<tr><th>Credit Hours</th><th>Enrollment</th><th>Course Type</th><th>FTE</th></tr>")
-                for ch, enrollment, course_type in data:
-                    fte = self.calculate_fte(ch, enrollment, course_type)
-                    print(f"<tr><td>{ch}</td><td>{enrollment}</td><td>{course_type}</td><td>{fte:.2f}</td></tr>")
-                print("</table>")
+            print("<h2>FTE</h2>") # Placeholder for FTE tab content
+
+        print("<table>")
+        if tab == "prerequisites":
+            print("<tr><th>Prefix</th><th>Number</th><th>PC Prefix</th><th>PC Number</th><th>PC Code</th></tr>")
+        elif tab == "courses":
+            print("<tr><th>Year</th><th>Semester</th><th>Prefix</th><th>Number</th><th>Section</th><th>CRN</th><th>Enrollment</th><th>Instructor</th><th>Days</th><th>Begin Time</th><th>End Time</th><th>Remarks</th></tr>")
+        elif tab == "fte":
+            print("<tr><th>Prefix</th><th>Number</th><th>Title</th><th>GU</th><th>CH</th><th>Frequency</th><th>Active</th><th>Description</th><th>Remarks</th></tr>")
+        else:  # Default to faculty
+            print("<tr><th>ID</th><th>Honorific</th><th>First</th><th>MI</th><th>Last</th><th>Email</th><th>Phone</th><th>Office</th><th>Research</th><th>Rank</th><th>Remarks</th><th>Currently Employed</th></tr>")
+
+        for row in data:
+            print("<tr>" + "".join(f"<td>{html.escape(str(col))}</td>" for col in row) + "</tr>")
+        print("</table>")
         print("</body></html>")
 
     def validate_input(self, value):
@@ -177,6 +166,7 @@ if __name__ == "__main__":
     form = cgi.FieldStorage()
     tab = form.getvalue('tab')
     university_data = UniversityData()
+    
 
     if tab == "prerequisites":
         data = university_data.fetch_prerequisites()
@@ -184,14 +174,12 @@ if __name__ == "__main__":
     elif tab == "courses":
         data = university_data.fetch_courses()
         university_data.print_html(data, tab="courses")
+    elif tab == "fte":
+        data = university_data.fetch_ch()
+        university_data.print_html(data, tab="fte")
     elif tab == "faculty":
         search_keyword = university_data.validate_input(form.getvalue('search'))
         sort_by = university_data.validate_input(form.getvalue('sort'))
         data = university_data.fetch_faculty(sort_by=sort_by, keyword=search_keyword)
         university_data.print_html(data, tab="faculty")
-    elif tab == "fte":
-        faculty = university_data.validate_input(form.getvalue('faculty'))
-        year = university_data.validate_input(form.getvalue('year'))
-        semester = university_data.validate_input(form.getvalue('semester'))
-        data = university_data.fetch_courses_for_fte(faculty, year, semester)
-        university_data.print_html(data, tab="fte")
+    # No data fetching or printing for FTE tab as per the instructions
